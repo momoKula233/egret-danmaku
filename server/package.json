@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "bytearray": "^0.1.3",
     "express": "^4.15.3",
     "http": "^0.0.0",
     "ws": "^3.0.0"

@@ -10,9 +10,20 @@ const wss = new WebSocket.Server({ server });
 
 wss.on('connection', function connection(ws, req) {
   const location = url.parse(req.url, true);
+  let online = wss.clients.size || 0;
+  if (online) {
+      online = JSON.stringify({ online });
+      wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+          client.send(online);
+      }
+    });
+  }
   ws.on('message', function incoming(message) {
+    // const bufffer = JSON.parse(message.toString());
     wss.clients.forEach(function each(client) {
       if (client.readyState === WebSocket.OPEN) {
+        console.log(message);
         client.send(message);
       }
     });

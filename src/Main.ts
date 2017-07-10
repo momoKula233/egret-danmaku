@@ -6,6 +6,9 @@ class Main extends egret.DisplayObjectContainer {
      */
     private loadingView: LoadingUI;
     private socket:egret.WebSocket = new egret.WebSocket();
+    private errorTrick: number = 0;
+    private textIput:egret.TextField = new egret.TextField();
+    private online: egret.TextField = new egret.TextField();
 
     public constructor() {
         super();
@@ -36,49 +39,76 @@ class Main extends egret.DisplayObjectContainer {
         bg.graphics.endFill();
         this.stage.addChild(bg);
 
+        const bgPic = new egret.Bitmap();
+        const texture: egret.Texture = RES.getRes('background_pic');
+        bgPic.texture = texture;
+        bgPic.width = this.stage.width;
+        bgPic.height = this.stage.height;
+        bgPic.fillMode = egret.BitmapFillMode.SCALE;
+        this.stage.addChild(bgPic);
+
         // create textinput
         const wrapper:egret.Shape =  new egret.Shape();
         wrapper.graphics.beginFill(0x000000);
-        wrapper.graphics.drawRect(0,0,this.stage.stageWidth - 150,40);
+        wrapper.graphics.drawRect(0,0,this.stage.stageWidth - 100,40);
         wrapper.graphics.endFill();
-        wrapper.alpha = .1;
+        wrapper.alpha = .5;
         this.stage.addChild(wrapper);
         wrapper.touchEnabled = true;
-        const textIput:egret.TextField = new egret.TextField();
-        textIput.text = '';
-        textIput.inputType = egret.TextFieldInputType.TEXT;
-        textIput.type = egret.TextFieldType.INPUT;
-        textIput.width = this.stage.width - 150;
-        textIput.height = 40;
-        textIput.verticalAlign = 'center';
-        this.stage.addChild(textIput);
+        this.textIput.text = '';
+        this.textIput.inputType = egret.TextFieldInputType.TEXT;
+        this.textIput.type = egret.TextFieldType.INPUT;
+        this.textIput.width = this.stage.width - 100;
+        this.textIput.height = 40;
+        this.textIput.verticalAlign = 'center';
+        this.stage.addChild(this.textIput);
         const postionY = this.stage.stageHeight - 50;
         wrapper.y = postionY - 5;
-        textIput.y = postionY;
-        textIput.x = 10;
-        textIput.addEventListener(egret.Event.CHANGE, () => {
-        }, this)
+        this.textIput.y = postionY;
+        this.textIput.x = 10;
         
         // create send button
-        const label:egret.TextField = new egret.TextField();
-        label.width = 70;
-        label.height = 70;
-        label.textColor = 0xff0000;
-        label.text = "send";
-        label.size = 18;
+        const label: egret.Shape = new egret.Shape();
+        label.graphics.beginFill(0x1dafec);
+        label.graphics.drawRect(0, 0, 100, 40);
+        label.graphics.endFill();
         label.x = this.stage.width - 100;
-        label.y = postionY;
+        label.y = postionY -5;
+        label.alpha = .5;
+        const button:egret.TextField = new egret.TextField();
+        button.width = 100;
+        button.height = 40;
+        button.textColor = 0xffffff;
+        button.text = "发送";
+        button.size = 18;
+        button.x = this.stage.width - 100;
+        button.y = postionY - 5;
+        button.textAlign = egret.HorizontalAlign.CENTER;
+        button.verticalAlign = egret.VerticalAlign.MIDDLE;
+        button.addEventListener(egret.TouchEvent.TOUCH_BEGIN,(e) => {
+                this.onPressSend(this.textIput.text);
+            }, this);
         label.addEventListener(egret.TouchEvent.TOUCH_BEGIN,(e) => {
-                this.onPressSend(textIput.text);
-                textIput.text = '';
+                this.onPressSend(this.textIput.text);
             }, this);
         this.stage.addChild(label);
+        this.stage.addChild(button);
+        button.touchEnabled = true;
         label.touchEnabled = true;
+
+        //create online number
+        this.online.text = '同时在线 0人';
+        this.online.x = this.stage.width - 90;
+        this.online.y = 5;
+        this.online.size = 14;
+        this.online.textColor = 0x000;
+        this.stage.addChild(this.online);
     }
 
+
     private connect(): void {
-        this.socket.connectByUrl('ws://192.168.1.51:8080');
-        this.socket.type = egret.WebSocket.TYPE_BINARY;
+        this.socket.connect('127.0.0.1', 8080);
+        this.socket.type = egret.WebSocket.TYPE_STRING;
         this.socket.addEventListener(egret.ProgressEvent.SOCKET_DATA, this.onReciveMsg, this)
         this.socket.addEventListener(egret.Event.CONNECT, this.onSocketOpen, this);
         this.socket.addEventListener(egret.Event.CLOSE, this.onSocketClose, this);
@@ -86,29 +116,34 @@ class Main extends egret.DisplayObjectContainer {
     }
 
     private onSocketClose():void {
+        ++this.errorTrick;
         egret.log('closed');
-        this.socket.connect('localhost', 8080);
-    }
-
-    private onSocketError(): void {
-        egret.log('error');
-        this.socket.connectByUrl('ws://192.168.1.51:8080');
-    }
-
-    private onPressSend(msg: string) {
-        this.socket.writeUTF(msg);
-    }
-
-    private onReciveMsg(e: egret.Event): void {
-        const bytes: egret.ByteArray = new egret.ByteArray();
-        this.socket.readBytes(bytes);
-        const msg:string = bytes.readUTF();
-        this.createDanmaku(msg);
+        if(this.errorTrick > 5) return;
+        this.socket.connect('127.0.0.1', 8080);
     }
 
     private onSocketOpen(): void {
         egret.log('connected');
     }
+    
+    private onSocketError(): void {
+        egret.log('error');
+        this.socket.connect('127.0.0.1', 8080);
+    }
+
+    private onPressSend(msg: string) {
+        this.socket.writeUTF(JSON.stringify({message: msg}));
+        this.textIput.text = '';
+    }
+
+    private onReciveMsg(e: egret.Event): void {
+        const bytes: egret.ByteArray = new egret.ByteArray();
+        let msg:any = this.socket.readUTF();
+        msg = JSON.parse(msg);
+        if(msg.message) this.createDanmaku(msg.message);
+        if(msg.online) this.online.text = `同时在线 ${msg.online.toString()}`;
+    }
+
 
     /**
      * hadnle for create danmaku
@@ -122,6 +157,8 @@ class Main extends egret.DisplayObjectContainer {
         danmaku.x = this.stage.stageWidth - danmaku.textWidth;
         danmaku.size = 18 + Math.random() * 6;
         danmaku.textColor = parseInt(`0x${Math.random().toString(16).substr(2,6)}`);
+        danmaku.stroke = 1;
+        danmaku.strokeColor = 0xebebeb;
         let swith: number = this.stage.width;
         const enterFrame: number = 2 * (Math.random() + .5);
         egret.startTick(() => {
