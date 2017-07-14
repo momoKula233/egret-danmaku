@@ -127,6 +127,10 @@ var Main = (function (_super) {
     };
     Main.prototype.onPressSend = function (msg) {
         this.socket.writeUTF(JSON.stringify({ message: msg }));
+        var request = new egret.HttpRequest();
+        request.responseType = egret.HttpResponseType.TEXT;
+        request.open("http://127.0.0.1:8080/message/" + this.textIput.text, egret.HttpMethod.POST);
+        request.send(JSON.stringify({ content: this.textIput.text }));
         this.textIput.text = '';
     };
     Main.prototype.onReciveMsg = function (e) {

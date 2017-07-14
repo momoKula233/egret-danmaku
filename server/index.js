@@ -2,8 +2,15 @@ const express = require('express');
 const http = require('http');
 const url = require('url');
 const WebSocket = require('ws');
-
+const request = require('./request');
 const app = express();
+const CORS = require('cors');
+
+const bodyParser = require('body-parser');
+app.use(bodyParser.json()); // support json encoded bodies
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(CORS());
+
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -29,6 +36,20 @@ wss.on('connection', function connection(ws, req) {
     });
   });
 });
+
+app.use('/message', (req, res, next) => {
+  // const content = req.body.content;
+  console.log(req.body, 'onpost');
+  res.send('test');
+  next();
+  // request.http(content, (message) => {
+  //   wss.clients.forEach(function each(client) {
+  //     if (client.readyState === WebSocket.OPEN) {
+  //       client.send(message);
+  //     }
+  //   });
+  // });
+})
 
 server.listen(8080, function listening() {
   console.log('Listening on %d', server.address().port);

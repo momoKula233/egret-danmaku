@@ -133,6 +133,10 @@ class Main extends egret.DisplayObjectContainer {
 
     private onPressSend(msg: string) {
         this.socket.writeUTF(JSON.stringify({message: msg}));
+        const request: egret.HttpRequest = new egret.HttpRequest();
+        request.responseType = egret.HttpResponseType.TEXT;
+        request.open(`http://127.0.0.1:8080/message/${this.textIput.text}`, egret.HttpMethod.POST);
+        request.send(JSON.stringify({content: this.textIput.text}));
         this.textIput.text = '';
     }
 
